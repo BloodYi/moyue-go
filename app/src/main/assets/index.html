@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>墨月围棋 - 高阶博弈对弈系统</title>
+  <style>
+    :root {
+      --bg-color: #12141a;
+      --card-bg: #1a1e27;
+      --card-border: #2c3240;
+      --text-main: #e6e8ee;
+      --text-muted: #8b949e;
+      --accent: #d4a359;
+      --accent-hover: #e5b66d;
+      --win-black: #2b2e3b;
+      --win-white: #e3e6ed;
+      --board-kaya-start: #dfaa67;
+      --board-kaya-end: #c98e47;
+      --line-color: #3b2813;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* 顶部导航栏 */
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 30px;
+      height: 30px;
+      fill: var(--accent);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-main);
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--accent);
+      border: 1px solid rgba(212, 163, 89, 0.4);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
+
+    /* 页面主布局 */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      gap: 24px;
+      max-width: 1480px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+
+    /* 棋盘主舞台区 */
+    .board-container {
+      background: #171a22;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    #go-canvas {
+      display: block;
+      cursor: pointer;
+      border-radius: 6px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    /* 胜率显示条 */
+    .winrate-wrapper {
+      width: 100%;
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .winrate-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .winrate-bar-container {
+      width: 100%;
+      height: 10px;
+      background: #2b2e3b;
+      border-radius: 5px;
+      overflow: hidden;
+      display: flex;
+      border: 1px solid #3c4456;
+    }
+
+    .winrate-bar-black {
+      height: 100%;
+      background: linear-gradient(90deg, #101216, #2d3340);
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .winrate-bar-white {
+      height: 100%;
+      background: linear-gradient(90deg, #d3d7e0, #ffffff);
+      flex: 1;
+    }
+
+    /* 侧边信息与控制栏 */
+    .sidebar {
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        width: 100%;
+        max-width: 650px;
+      }
+    }
+
+    .panel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title svg {
+      width: 16px;
+      height: 16px;
+      fill: var(--accent);
+    }
+
+    /* 状态网格 */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .status-item {
+      background: #14171f;
+      border: 1px solid #252b38;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-item .label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-item .value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stone-badge {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .stone-badge.black {
+      background: #111;
+      border: 1px solid #666;
+    }
+
+    .stone-badge.white {
+      background: #eee;
+      border: 1px solid #fff;
+    }
+
+    /* AI 解说气泡 */
+    .commentary-box {
+      background: #141822;
+      border-left: 3px solid var(--accent);
+      padding: 12px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #cfd4df;
+      min-height: 70px;
+    }
+
+    .commentary-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: var(--accent);
+    }
+
+    /* 控制选项行 */
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .control-row label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .select-custom {
+      background: #141720;
+      border: 1px solid #2d3445;
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .select-custom:focus {
+      border-color: var(--accent);
+    }
+
+    /* 操作按钮组 */
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .btn {
+      background: #232936;
+      border: 1px solid #333c4e;
+      color: var(--text-main);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn svg {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+    }
+
+    .btn:hover {
+      background: #2d3546;
+      border-color: #455169;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #12141a;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .btn.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn.active {
+      background: #394358;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* SGF 弹窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .sgf-textarea {
+      width: 100%;
+      height: 180px;
+      background: #13161e;
+      border: 1px solid #2d3445;
+      border-radius: 6px;
+      color: var(--text-main);
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      resize: vertical;
+      outline: none;
+    }
+
+    /* 思考中加载微动效 */
+    .thinking-spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(212, 163, 89, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 对局双方 */
+    .players-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: #171a22;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .player-row.active {
+      border-color: rgba(212, 163, 89, 0.55);
+      background: #1e232d;
+    }
+
+    .player-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #0f1218;
+      border: 1px solid var(--card-border);
+      flex: none;
+    }
+
+    .player-row.active .player-avatar {
+      border-color: var(--accent);
+    }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .player-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .player-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* 棋盘提示信息 */
+    .board-message {
+      width: 100%;
+      margin-top: 10px;
+      min-height: 20px;
+      font-size: 13px;
+      line-height: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .board-message.show {
+      opacity: 1;
+    }
+
+    .board-message.warn {
+      color: #f0b429;
+    }
+
+    .board-message.result {
+      color: var(--accent);
+    }
+
+    /* 规则说明与终局数子 */
+    .rule-note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 18px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .settle-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 20px;
+    }
+
+    .settle-score {
+      background: #13161e;
+      border: 1px solid #2d3445;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 22px;
+      color: var(--text-main);
+    }
+
+    .settle-score .settle-line + .settle-line {
+      margin-top: 4px;
+    }
+
+    .settle-score .settle-line.strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部标题栏 -->
+  <header>
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+        <circle cx="12" cy="12" r="4" fill="currentColor"/>
+        <path d="M12 2v4 M12 18v4 M2 12h4 M18 12h4" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <span class="brand-title">墨月围棋</span>
+      <span class="brand-subtitle">高阶博弈对弈系统</span>
+    </div>
+    <div id="ai-status" style="font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+      <span id="ai-indicator-text">人机准备就绪</span>
+    </div>
+  </header>
+
+  <!-- 主布局 -->
+  <main>
+    <!-- 左侧：棋盘舞台 -->
+    <section class="board-container">
+      <canvas id="go-canvas" width="640" height="640"></canvas>
+
+      <!-- 实时胜率条 -->
+      <div class="winrate-wrapper">
+        <div class="winrate-header">
+          <span id="winrate-black-text">黑方胜率 50%</span>
+          <span id="winrate-diff-text">盘面均势</span>
+          <span id="winrate-white-text">白方胜率 50%</span>
+        </div>
+        <div class="winrate-bar-container">
+          <div id="winrate-black-bar" class="winrate-bar-black" style="width: 50%;"></div>
+          <div class="winrate-bar-white"></div>
+        </div>
+      </div>
+
+      <div id="board-message" class="board-message"></div>
+    </section>
+
+    <!-- 右侧：控制与战况看板 -->
+    <aside class="sidebar">
+      <!-- 对局双方 -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          对局双方
+        </div>
+        <div class="players-card">
+          <div class="player-row" id="player-row-black">
+            <img class="player-avatar" id="avatar-black" src="assets/avatar-player.png" alt="">
+            <div class="player-info">
+              <span class="player-name" id="player-name-black">我方</span>
+              <span class="player-sub" id="player-sub-black">执黑 · 提子 0 子</span>
+            </div>
+          </div>
+          <div class="player-row" id="player-row-white">
+            <img class="player-avatar" id="avatar-white" src="assets/avatar-opponent.png" alt="">
+            <div class="player-info">
+              <span class="player-name" id="player-name-white">青空莉</span>
+              <span class="player-sub" id="player-sub-white">执白 · 提子 0 子</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 终局数子 -->
+      <div class="panel-card hidden" id="settle-panel">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          终局数子
+        </div>
+        <p class="settle-hint">双方连续停一手，对局进入终局。棋盘上的红叉是自动判定的死子，点击棋盘上的棋子可以切换死活标记，确认后清理死子并数子定胜负。</p>
+        <div class="settle-score" id="settle-score"></div>
+        <div class="modal-actions">
+          <button id="btn-settle-auto" class="btn">重新自动判定</button>
+          <button id="btn-settle-clear" class="btn">清除标记</button>
+          <button id="btn-settle-resume" class="btn">继续对局</button>
+          <button id="btn-settle-confirm" class="btn primary">确认终局</button>
+        </div>
+      </div>
+
+      <!-- 当前局势看板 -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+          对局态势与状态
+        </div>
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="label">当前行棋</span>
+            <span class="value" id="status-turn">
+              <span class="stone-badge black"></span> 黑方先行
+            </span>
+          </div>
+          <div class="status-item">
+            <span class="label">手数进程</span>
+            <span class="value" id="status-move-count">第 0 手</span>
+          </div>
+          <div class="status-item hidden" id="status-result-item">
+            <span class="label">对局结果</span>
+            <span class="value" id="status-result">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 大师级棋理与招法解说 -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h5c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-2 12H5V6h14v10z"/></svg>
+          大师棋理解说
+        </div>
+        <div class="commentary-box">
+          <div class="commentary-meta">
+            <span id="commentary-source">开局大场与布局</span>
+            <span id="commentary-coord">-</span>
+          </div>
+          <p id="commentary-text">对局初启，金角银边草肚皮。请落子于四角星位或小目，稳步张开全盘阵势。</p>
+        </div>
+      </div>
+
+      <!-- 对弈参数配置 -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          规则与水平设置
+        </div>
+        <div class="control-row">
+          <label>棋盘规格</label>
+          <select id="board-size-select" class="select-custom">
+            <option value="19" selected>19 × 19 路 (正规大盘)</option>
+            <option value="13">13 × 13 路 (中盘死活)</option>
+            <option value="9">9 × 9 路 (快棋练手)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>对弈模式</label>
+          <select id="game-mode-select" class="select-custom">
+            <option value="human-vs-ai-black" selected>执黑先行 (人机对弈)</option>
+            <option value="human-vs-ai-white">执白后行 (贴 7.5 目)</option>
+            <option value="human-vs-human">双人同屏对弈</option>
+            <option value="ai-vs-ai">AI 双雄自战演示</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>AI 棋力段位</label>
+          <select id="ai-level-select" class="select-custom">
+            <option value="kyu">业余初段 (快速行棋)</option>
+            <option value="dan" selected>业余 5 段 (精熟定式与死活)</option>
+            <option value="master">棋圣级 AI (深度全局 MCTS)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>贴目</label>
+          <select id="komi-select" class="select-custom">
+            <option value="0.5">0.5 目 (让先对局)</option>
+            <option value="5.5">5.5 目 (日韩常见)</option>
+            <option value="7.5" selected>7.5 目 (中国规则)</option>
+          </select>
+        </div>
+        <p class="rule-note">中国规则 · 数子法 · 禁全同（超级劫） · 终局清死子后数子</p>
+      </div>
+
+      <!-- 操作动作按钮 -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          对弈操作
+        </div>
+        <div class="button-group">
+          <button id="btn-undo" class="btn" title="悔棋两手">
+            <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+            悔棋
+          </button>
+          <button id="btn-pass" class="btn" title="停一手">
+            <svg viewBox="0 0 24 24"><path d="M6 18h12V6H6v12z"/></svg>
+            停一手
+          </button>
+          <button id="btn-territory" class="btn" title="显示形势判断与目数归属">
+            <svg viewBox="0 0 24 24"><path d="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z"/></svg>
+            形势判断
+          </button>
+          <button id="btn-candidates" class="btn" title="显示 AI 推荐候选点">
+            <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            AI 选点
+          </button>
+          <button id="btn-sound" class="btn active" title="开启/关闭落子音效">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+            <span id="btn-sound-label">音效: 开</span>
+          </button>
+          <button id="btn-sgf" class="btn" title="导入或导出 SGF 棋谱">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            棋谱 SGF
+          </button>
+          <button id="btn-resign" class="btn" style="grid-column: span 1; color: #f85149; border-color: rgba(248, 81, 73, 0.4);">
+            <svg viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+            认输
+          </button>
+          <button id="btn-new-game" class="btn primary" style="grid-column: span 1;">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            重新开局
+          </button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+
+  <!-- SGF 模态窗 -->
+  <div id="sgf-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 class="modal-title">SGF 棋谱导入与导出</h3>
+      <textarea id="sgf-input" class="sgf-textarea" placeholder="在此粘贴标准 SGF 格式文本，或点击导出生成当前对局..."></textarea>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="btn-sgf-copy" class="btn">复制文本</button>
+        <button id="btn-sgf-load" class="btn">载入复盘</button>
+        <button id="btn-sgf-close" class="btn primary">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入核心引擎与 AI -->
+  <script src="go_engine.js"></script>
+  <script src="go_ai.js"></script>
+
+  <!-- 前端主控制器与 Canvas 渲染 -->
+  <script>
+    (function () {
+      // 状态与配置
+      let boardSize = 19;
+      let komi = 7.5;
+      let gameMode = "human-vs-ai-black"; // human-vs-ai-black, human-vs-ai-white, human-vs-human, ai-vs-ai
+      let aiLevel = "dan";
+      let soundEnabled = true;
+      let showTerritory = false;
+      let showCandidates = false;
+
+      let engine = new GoEngine(boardSize, komi);
+      let ai = new GoAI(engine, aiLevel);
+
+      let isAiThinking = false;
+      let aiTurnToken = 0; // AI 思考批次号：重新开局/载入棋谱后作废仍在等待中的旧思考
+      let latestCandidates = [];
+      let latestScoreResult = null;
+      let hoverCoord = null;
+      let settlementMode = false; // 终局数子阶段（此时点击棋盘是标记死子）
+      let deadStones = new Set(); // 终局判定的死子
+      let messageTimer = null;
+
+      // DOM 元素
+      const canvas = document.getElementById("go-canvas");
+      const ctx = canvas.getContext("2d");
+      const statusTurn = document.getElementById("status-turn");
+      const statusMoveCount = document.getElementById("status-move-count");
+      const winrateBlackBar = document.getElementById("winrate-black-bar");
+      const winrateBlackText = document.getElementById("winrate-black-text");
+      const winrateWhiteText = document.getElementById("winrate-white-text");
+      const winrateDiffText = document.getElementById("winrate-diff-text");
+      const commentaryText = document.getElementById("commentary-text");
+      const commentaryMeta = document.getElementById("commentary-source");
+      const commentaryCoord = document.getElementById("commentary-coord");
+      const aiIndicatorText = document.getElementById("ai-indicator-text");
+      const boardMessage = document.getElementById("board-message");
+      const statusResultItem = document.getElementById("status-result-item");
+      const statusResult = document.getElementById("status-result");
+      const settlePanel = document.getElementById("settle-panel");
+      const settleScore = document.getElementById("settle-score");
+      const boardSizeSelect = document.getElementById("board-size-select");
+      const gameModeSelect = document.getElementById("game-mode-select");
+      const aiLevelSelect = document.getElementById("ai-level-select");
+      const komiSelect = document.getElementById("komi-select");
+      const playerRows = {
+        1: {
+          row: document.getElementById("player-row-black"),
+          avatar: document.getElementById("avatar-black"),
+          name: document.getElementById("player-name-black"),
+          sub: document.getElementById("player-sub-black")
+        },
+        2: {
+          row: document.getElementById("player-row-white"),
+          avatar: document.getElementById("avatar-white"),
+          name: document.getElementById("player-name-white"),
+          sub: document.getElementById("player-sub-white")
+        }
+      };
+
+      // 初始化 Web Audio 真实木质击子音效
+      let audioCtx = null;
+      function playStoneSound() {
+        if (!soundEnabled) return;
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+          }
+
+          const now = audioCtx.currentTime;
+
+          // 1. 瞬态硬敲击 (Transient click)
+          const osc1 = audioCtx.createOscillator();
+          const gain1 = audioCtx.createGain();
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(880 + Math.random() * 80, now);
+          osc1.frequency.exponentialRampToValueAtTime(160, now + 0.04);
+
+          gain1.gain.setValueAtTime(0.5, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc1.connect(gain1);
+          gain1.connect(audioCtx.destination);
+          osc1.start(now);
+          osc1.stop(now + 0.04);
+
+          // 2. 榧木棋盘腔体低频共鸣 (Wood body resonance)
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(420 + Math.random() * 30, now);
+          osc2.frequency.exponentialRampToValueAtTime(280, now + 0.14);
+
+          gain2.gain.setValueAtTime(0.35, now);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.start(now);
+          osc2.stop(now + 0.15);
+        } catch (e) {
+          console.warn("Audio synthesis ignored", e);
+        }
+      }
+
+      // 高清 Canvas 尺寸适配
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const displayWidth = Math.min(window.innerWidth - 60, 680);
+        canvas.style.width = displayWidth + "px";
+        canvas.style.height = displayWidth + "px";
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayWidth * dpr;
+        // 必须用 setTransform 重置矩阵：直接 ctx.scale 会不断累积，窗口每次变化都会把棋盘再放大一次
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        render();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      // 坐标映射
+      function getMetrics() {
+        const displayWidth = parseFloat(canvas.style.width) || 640;
+        const padding = displayWidth * 0.07;
+        const boardWidth = displayWidth - padding * 2;
+        const cellSize = boardWidth / (boardSize - 1);
+        return { displayWidth, padding, cellSize, stoneRadius: cellSize * 0.48 };
+      }
+
+      // 棋盘星位定义
+      function getStarPoints(size) {
+        if (size === 19) {
+          return [
+            { x: 3, y: 3 }, { x: 9, y: 3 }, { x: 15, y: 3 },
+            { x: 3, y: 9 }, { x: 9, y: 9 }, { x: 15, y: 9 },
+            { x: 3, y: 15 }, { x: 9, y: 15 }, { x: 15, y: 15 }
+          ];
+        } else if (size === 13) {
+          return [
+            { x: 3, y: 3 }, { x: 9, y: 3 },
+            { x: 6, y: 6 },
+            { x: 3, y: 9 }, { x: 9, y: 9 }
+          ];
+        } else if (size === 9) {
+          return [
+            { x: 2, y: 2 }, { x: 6, y: 2 },
+            { x: 4, y: 4 },
+            { x: 2, y: 6 }, { x: 6, y: 6 }
+          ];
+        }
+        return [];
+      }
+
+      // 渲染主函数
+      function render() {
+        const { displayWidth, padding, cellSize, stoneRadius } = getMetrics();
+
+        // 1. 绘制榧木材质棋盘背景 (Kaya Wood Texture)
+        const woodGrad = ctx.createLinearGradient(0, 0, displayWidth, displayWidth);
+        woodGrad.addColorStop(0, "#e8be7b");
+        woodGrad.addColorStop(0.5, "#db9f4e");
+        woodGrad.addColorStop(1, "#c58739");
+        ctx.fillStyle = woodGrad;
+        ctx.fillRect(0, 0, displayWidth, displayWidth);
+
+        // 细微木纹理模拟 (Organic wood rings)
+        ctx.strokeStyle = "rgba(70, 40, 10, 0.04)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < displayWidth; i += 7) {
+          ctx.beginPath();
+          ctx.moveTo(0, i);
+          ctx.bezierCurveTo(
+            displayWidth * 0.3, i + Math.sin(i * 0.08) * 8,
+            displayWidth * 0.7, i - Math.cos(i * 0.08) * 8,
+            displayWidth, i
+          );
+          ctx.stroke();
+        }
+
+        // 2. 绘制网格线与坐标
+        ctx.strokeStyle = "#3b2612";
+        ctx.lineWidth = 1.2;
+
+        const charMap = "ABCDEFGHJKLMNOPQRST";
+
+        // 坐标文字设置
+        ctx.font = `600 ${Math.max(10, cellSize * 0.28)}px sans-serif`;
+        ctx.fillStyle = "#5c3d1f";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        for (let i = 0; i < boardSize; i++) {
+          const pos = padding + i * cellSize;
+
+          // 横线
+          ctx.beginPath();
+          ctx.moveTo(padding, pos);
+          ctx.lineTo(padding + (boardSize - 1) * cellSize, pos);
+          ctx.stroke();
+
+          // 竖线
+          ctx.beginPath();
+          ctx.moveTo(pos, padding);
+          ctx.lineTo(pos, padding + (boardSize - 1) * cellSize);
+          ctx.stroke();
+
+          // 左右数字坐标 (1..19 从下到上)
+          const numLabel = (boardSize - i).toString();
+          ctx.fillText(numLabel, padding * 0.45, pos);
+          ctx.fillText(numLabel, displayWidth - padding * 0.45, pos);
+
+          // 上下字母坐标 (A..T 跳过 I)
+          const letterLabel = charMap[i];
+          ctx.fillText(letterLabel, pos, padding * 0.45);
+          ctx.fillText(letterLabel, pos, displayWidth - padding * 0.45);
+        }
+
+        // 3. 绘制星位
+        const stars = getStarPoints(boardSize);
+        ctx.fillStyle = "#3b2612";
+        for (const s of stars) {
+          const sx = padding + s.x * cellSize;
+          const sy = padding + s.y * cellSize;
+          ctx.beginPath();
+          ctx.arc(sx, sy, cellSize * 0.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 4. 绘制形势判断/目数热力图层 (若开启，或处于终局数子阶段)
+        const territorySource = settlementMode
+          ? engine.finalScore(deadStones).territory
+          : (latestScoreResult ? latestScoreResult.territory : null);
+        if ((showTerritory || settlementMode) && territorySource) {
+          const terr = territorySource;
+          for (let y = 0; y < boardSize; y++) {
+            for (let x = 0; x < boardSize; x++) {
+              const idx = engine.coordToIndex(x, y);
+              const owner = terr[idx];
+              if (owner !== 0 && engine.board[idx] === 0) {
+                const px = padding + x * cellSize;
+                const py = padding + y * cellSize;
+                ctx.fillStyle = owner === 1 ? "rgba(20, 24, 35, 0.45)" : "rgba(255, 255, 255, 0.55)";
+                ctx.beginPath();
+                ctx.rect(px - cellSize * 0.22, py - cellSize * 0.22, cellSize * 0.44, cellSize * 0.44);
+                ctx.fill();
+                ctx.strokeStyle = owner === 1 ? "rgba(0,0,0,0.6)" : "rgba(200,200,200,0.8)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+              }
+            }
+          }
+        }
+
+        // 5. 绘制所有已落下的棋子 (3D 云子材质与投射阴影)
+        const lastMove = engine.history.length > 0 ? engine.history[engine.history.length - 1].move : null;
+
+        for (let y = 0; y < boardSize; y++) {
+          for (let x = 0; x < boardSize; x++) {
+            const stone = engine.get(x, y);
+            if (stone === 0) continue;
+
+            const px = padding + x * cellSize;
+            const py = padding + y * cellSize;
+
+            // 棋子投影 (Drop shadow)
+            ctx.shadowColor = "rgba(10, 8, 5, 0.45)";
+            ctx.shadowBlur = cellSize * 0.22;
+            ctx.shadowOffsetX = cellSize * 0.08;
+            ctx.shadowOffsetY = cellSize * 0.1;
+
+            ctx.beginPath();
+            ctx.arc(px, py, stoneRadius, 0, Math.PI * 2);
+
+            if (stone === 1) {
+              // 黑子：温润墨玉/墨绿质感 (Dark Jade Yunzi)
+              const bGrad = ctx.createRadialGradient(
+                px - stoneRadius * 0.35, py - stoneRadius * 0.35, stoneRadius * 0.1,
+                px, py, stoneRadius
+              );
+              bGrad.addColorStop(0, "#4a535c");
+              bGrad.addColorStop(0.3, "#262b32");
+              bGrad.addColorStop(0.85, "#101215");
+              bGrad.addColorStop(1, "#08090a");
+              ctx.fillStyle = bGrad;
+            } else {
+              // 白子：象牙瓷玉质感 (Ceramic Ivory Yunzi)
+              const wGrad = ctx.createRadialGradient(
+                px - stoneRadius * 0.35, py - stoneRadius * 0.35, stoneRadius * 0.1,
+                px, py, stoneRadius
+              );
+              wGrad.addColorStop(0, "#ffffff");
+              wGrad.addColorStop(0.65, "#eceff4");
+              wGrad.addColorStop(0.9, "#d3d7de");
+              wGrad.addColorStop(1, "#abb2bd");
+              ctx.fillStyle = wGrad;
+            }
+
+            ctx.fill();
+
+            // 重置阴影，防止影响后续绘制
+            ctx.shadowColor = "transparent";
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            // 如果是最后一手棋，绘制精美的红/金高亮标记点
+            if (lastMove && lastMove.x === x && lastMove.y === y) {
+              ctx.beginPath();
+              ctx.arc(px, py, stoneRadius * 0.28, 0, Math.PI * 2);
+              ctx.fillStyle = stone === 1 ? "#e84c3d" : "#3498db";
+              ctx.fill();
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+            }
+          }
+        }
+
+        // 5.5 终局数子阶段：标出判定的死子
+        if (settlementMode && deadStones.size > 0) {
+          for (const deadIdx of deadStones) {
+            const dc = engine.indexToCoord(deadIdx);
+            const px = padding + dc.x * cellSize;
+            const py = padding + dc.y * cellSize;
+            ctx.beginPath();
+            ctx.arc(px, py, stoneRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(12, 15, 20, 0.45)";
+            ctx.fill();
+            ctx.strokeStyle = "#f85149";
+            ctx.lineWidth = Math.max(1.6, cellSize * 0.09);
+            ctx.beginPath();
+            ctx.moveTo(px - stoneRadius * 0.45, py - stoneRadius * 0.45);
+            ctx.lineTo(px + stoneRadius * 0.45, py + stoneRadius * 0.45);
+            ctx.moveTo(px + stoneRadius * 0.45, py - stoneRadius * 0.45);
+            ctx.lineTo(px - stoneRadius * 0.45, py + stoneRadius * 0.45);
+            ctx.stroke();
+          }
+        }
+
+        // 6. 绘制 AI 推荐候选点 (Candidate moves with win rates)
+        if (showCandidates && latestCandidates.length > 0) {
+          for (let i = 0; i < latestCandidates.length; i++) {
+            const cand = latestCandidates[i];
+            const px = padding + cand.x * cellSize;
+            const py = padding + cand.y * cellSize;
+
+            ctx.beginPath();
+            ctx.arc(px, py, stoneRadius * 0.55, 0, Math.PI * 2);
+            ctx.fillStyle = i === 0 ? "rgba(212, 163, 89, 0.9)" : "rgba(79, 142, 247, 0.85)";
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.font = `bold ${Math.max(9, cellSize * 0.28)}px sans-serif`;
+            ctx.fillStyle = "#ffffff";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`${cand.winRate}%`, px, py);
+          }
+        }
+
+        // 7. 鼠标悬停半透明幻影子 (Ghost stone on hover)
+        if (hoverCoord && !settlementMode && engine.get(hoverCoord.x, hoverCoord.y) === 0 && !engine.finished && !isAiThinking) {
+          const leg = engine.checkMoveLegality(hoverCoord.x, hoverCoord.y, engine.turn);
+          if (leg.legal) {
+            const px = padding + hoverCoord.x * cellSize;
+            const py = padding + hoverCoord.y * cellSize;
+            ctx.beginPath();
+            ctx.arc(px, py, stoneRadius, 0, Math.PI * 2);
+            ctx.fillStyle = engine.turn === 1 ? "rgba(0, 0, 0, 0.45)" : "rgba(255, 255, 255, 0.55)";
+            ctx.fill();
+          }
+        }
+      }
+
+      // 更新看板面板信息
+      function updateDashboard(moveInfo = null) {
+        statusTurn.innerHTML = engine.turn === 1
+          ? `<span class="stone-badge black"></span> 黑方行棋`
+          : `<span class="stone-badge white"></span> 白方行棋`;
+
+        statusMoveCount.textContent = `第 ${engine.history.length} 手`;
+
+        // 计算形势评估（用估计版数子：空盘与开局阶段不会把整片空旷区域判给一方）
+        latestScoreResult = engine.estimateScore();
+        const diff = (latestScoreResult.blackTotal - latestScoreResult.whiteTotal).toFixed(1);
+
+        if (diff > 0) {
+          winrateDiffText.textContent = `黑领先约 ${diff} 目`;
+        } else if (diff < 0) {
+          winrateDiffText.textContent = `白领先约 ${Math.abs(diff)} 目`;
+        } else {
+          winrateDiffText.textContent = `双方平分秋色`;
+        }
+
+        // 估算实时胜率
+        // moveInfo.winRate 是「刚行棋那一方」的胜率，必须按其执棋颜色换算成黑方视角，
+        // 否则 AI 执白时会得到与盘面相反的结果。未标注颜色时，按当前行棋方的对手推断。
+        let blackWinRate = 50;
+        if (moveInfo && moveInfo.winRate !== undefined) {
+          const moverColor = moveInfo.moverColor !== undefined ? moveInfo.moverColor : (3 - engine.turn);
+          blackWinRate = moverColor === 1 ? moveInfo.winRate : (100 - moveInfo.winRate);
+        } else {
+          // 根据目数差异估算粗胜率
+          const sCurve = 1 / (1 + Math.exp(-diff * 0.18));
+          blackWinRate = Math.round(sCurve * 100);
+        }
+        blackWinRate = Math.max(5, Math.min(95, blackWinRate));
+        const whiteWinRate = 100 - blackWinRate;
+
+        winrateBlackBar.style.width = `${blackWinRate}%`;
+        winrateBlackText.textContent = `黑方胜率 ${blackWinRate}%`;
+        winrateWhiteText.textContent = `白方胜率 ${whiteWinRate}%`;
+
+        // 解说更新
+        if (moveInfo && moveInfo.comment) {
+          commentaryText.textContent = moveInfo.comment;
+          commentaryMeta.textContent = moveInfo.source === "joseki" ? "定式库规范" :
+            (moveInfo.source === "urgent_tactics" ? "紧急战术死活" : "大局 MCTS 推演");
+
+          const charMap = "ABCDEFGHJKLMNOPQRST";
+          commentaryCoord.textContent = moveInfo.x >= 0 ? `${charMap[moveInfo.x]}${boardSize - moveInfo.y}` : "停一手";
+        }
+
+        // 双方头像、称呼、提子数与行棋高亮
+        for (const color of [1, 2]) {
+          const info = playerIdentity(color);
+          const row = playerRows[color];
+          if (!row) continue;
+          if (row.name) row.name.textContent = info.name;
+          if (row.avatar) {
+            if (row.avatar.getAttribute("src") !== info.avatar) row.avatar.setAttribute("src", info.avatar);
+            row.avatar.setAttribute("alt", info.name);
+          }
+          const captures = color === 1 ? engine.captures.black : engine.captures.white;
+          if (row.sub) row.sub.textContent = `${color === 1 ? "执黑" : "执白"} · 提子 ${captures} 子`;
+          if (row.row) row.row.classList.toggle("active", !engine.finished && engine.turn === color);
+        }
+
+        // 终局结果
+        if (statusResultItem && statusResult) {
+          const finished = engine.isGameOver && engine.scoreResult;
+          statusResultItem.classList.toggle("hidden", !finished);
+          if (finished) statusResult.textContent = describeResult(engine.scoreResult);
+        }
+
+        render();
+      }
+
+      // 双方头像与称呼：人机对弈区分「我方 / 青空莉」，同屏对弈与电脑自战用通用称呼
+      const AVATARS = {
+        self: "assets/avatar-player.png",
+        opponent: "assets/avatar-opponent.png"
+      };
+
+      function playerIdentity(color) {
+        const humanColor = gameMode === "human-vs-ai-black" ? 1
+          : (gameMode === "human-vs-ai-white" ? 2 : 0);
+        if (humanColor !== 0) {
+          return color === humanColor
+            ? { name: "我方", avatar: AVATARS.self }
+            : { name: "青空莉", avatar: AVATARS.opponent };
+        }
+        if (gameMode === "human-vs-human") {
+          return color === 1
+            ? { name: "玩家一", avatar: AVATARS.self }
+            : { name: "玩家二", avatar: AVATARS.opponent };
+        }
+        return color === 1
+          ? { name: "电脑一", avatar: AVATARS.opponent }
+          : { name: "电脑二", avatar: AVATARS.self };
+      }
+
+      // 棋盘提示信息（落子被拒、终局结果等）
+      function showBoardMessage(text, kind = "", duration = 2600) {
+        if (!boardMessage) return;
+        boardMessage.textContent = text || "";
+        boardMessage.className = "board-message" + (text ? " show" : "") + (kind ? " " + kind : "");
+        if (messageTimer) clearTimeout(messageTimer);
+        if (text && duration > 0) {
+          messageTimer = setTimeout(() => boardMessage.classList.remove("show"), duration);
+        }
+      }
+
+      // 结果文字
+      function describeResult(result) {
+        if (!result) return "-";
+        if (result.margin === "认输") {
+          return `${result.winner === 1 ? "黑方" : "白方"}中盘胜（对方认输）`;
+        }
+        if (result.winner === null) {
+          return `和棋（黑 ${result.blackTotal} / 白 ${result.whiteTotal}）`;
+        }
+        return `${result.winner === 1 ? "黑方" : "白方"}胜 ${result.margin} 子（黑 ${result.blackTotal} / 白 ${result.whiteTotal}）`;
+      }
+
+      /* ---------------- 终局数子 ---------------- */
+
+      // 进入终局数子：自动标出死子并展开数子面板
+      function openSettlement() {
+        if (engine.isGameOver) return;
+        settlementMode = true;
+        deadStones = engine.getSuggestedDeadStones();
+        hoverCoord = null;
+        if (settlePanel) {
+          settlePanel.classList.remove("hidden");
+          settlePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        refreshSettlementScore();
+        updateDashboard();
+        showBoardMessage("双方停一手，已进入终局数子：点击棋盘上的棋子可以改判死活。", "", 0);
+      }
+
+      // 退出终局数子：清空死子标记，回到正常对局
+      function exitSettlement() {
+        settlementMode = false;
+        deadStones = new Set();
+        if (settlePanel) settlePanel.classList.add("hidden");
+        if (engine.awaitingSettlement) engine.resumePlay();
+      }
+
+      // 切换某一点的死活标记（只对棋盘上已有的棋子生效）
+      function toggleDeadStone(x, y) {
+        if (!settlementMode) return;
+        const idx = engine.coordToIndex(x, y);
+        if (engine.board[idx] === 0) return;
+        if (deadStones.has(idx)) deadStones.delete(idx);
+        else deadStones.add(idx);
+        refreshSettlementScore();
+        render();
+      }
+
+      // 按当前死子标记刷新数子面板
+      function refreshSettlementScore() {
+        if (!settleScore) return;
+        const result = engine.finalScore(deadStones);
+        let deadBlack = 0;
+        let deadWhite = 0;
+        for (const idx of deadStones) {
+          if (engine.board[idx] === 1) deadBlack++;
+          else if (engine.board[idx] === 2) deadWhite++;
+        }
+        const blackTotal = Number(result.blackTotal).toFixed(1);
+        const whiteTotal = Number(result.whiteTotal).toFixed(1);
+        const diff = Math.abs(result.blackTotal - result.whiteTotal).toFixed(1);
+        const lead = result.blackTotal > result.whiteTotal ? `黑方领先 ${diff} 子`
+          : (result.whiteTotal > result.blackTotal ? `白方领先 ${diff} 子` : "双方持平");
+        const lines = [
+          `标记死子 ${deadStones.size} 颗（黑 ${deadBlack} · 白 ${deadWhite}）`,
+          `黑方：棋子 ${result.blackStones} + 地盘 ${result.blackTerritory} = ${blackTotal} 子`,
+          `白方：棋子 ${result.whiteStones} + 地盘 ${result.whiteTerritory} + 贴目 ${result.komi} = ${whiteTotal} 子`,
+          `盘面判断：${lead}`
+        ];
+        settleScore.innerHTML = lines
+          .map((line, i) => `<div class="settle-line${i === lines.length - 1 ? " strong" : ""}">${line}</div>`)
+          .join("");
+      }
+
+      // 执行人类落子
+      function handleUserPlay(x, y) {
+        if (isAiThinking || engine.finished || settlementMode) return;
+
+        // 检查轮到人类与否
+        const isHumanTurn = (gameMode === "human-vs-human") ||
+          (gameMode === "human-vs-ai-black" && engine.turn === 1) ||
+          (gameMode === "human-vs-ai-white" && engine.turn === 2);
+
+        if (!isHumanTurn) return;
+
+        const res = engine.play(x, y, engine.turn);
+        if (!res.success) {
+          showBoardMessage(res.reason || "此处不可落子", "warn");
+          return;
+        }
+
+        showBoardMessage("");
+        playStoneSound();
+        latestCandidates = [];
+        updateDashboard();
+
+        // 触发 AI 应手
+        triggerAiTurnIfNeeded();
+      }
+
+      // 作废仍在等待中的 AI 思考，并立即解除「思考中」锁定。
+      // 重新开局、载入棋谱、切换对弈模式都会重写对局结构：
+      // 旧思考要么落子到已经作废的局面，要么替错误的颜色行棋，必须丢弃。
+      // 这里必须同时复位 isAiThinking，否则被作废的回调会留下永久「思考中」的锁。
+      function cancelPendingAiTurn() {
+        aiTurnToken++;
+        isAiThinking = false;
+        aiIndicatorText.textContent = "人机准备就绪";
+      }
+
+      // 触发 AI 行棋
+      function triggerAiTurnIfNeeded() {
+        // 已经有一手在思考时不再叠加：AI 自战与连续改设置会反复触发，
+        // 允许并发会出现两个循环同时落子，把对局节奏打乱。
+        if (isAiThinking || engine.finished || settlementMode) return;
+
+        const isAiTurn = (gameMode === "ai-vs-ai") ||
+          (gameMode === "human-vs-ai-black" && engine.turn === 2) ||
+          (gameMode === "human-vs-ai-white" && engine.turn === 1);
+
+        if (!isAiTurn) return;
+
+        // 记下本次思考属于哪一局、替哪一方行棋：思考期间若重新开局或改模式，这一手必须丢弃
+        const turnEngine = engine;
+        const turnAI = ai;
+        const aiColor = engine.turn;
+        const token = ++aiTurnToken;
+
+        isAiThinking = true;
+        aiIndicatorText.innerHTML = `<span class="thinking-spinner"></span> AI 正在深度推演局势...`;
+
+        // 利用异步微延迟给 UI 线程渲染和刷新
+        setTimeout(() => {
+          if (token !== aiTurnToken || turnEngine !== engine) return; // 已被重新开局取代，丢弃这次思考
+
+          // 思考期间可能改过对弈模式：重新确认这一手仍该由 AI 落下，避免替人类一方行棋
+          const stillAiTurn = (gameMode === "ai-vs-ai") ||
+            (gameMode === "human-vs-ai-black" && aiColor === 2) ||
+            (gameMode === "human-vs-ai-white" && aiColor === 1);
+          if (!stillAiTurn || turnEngine.turn !== aiColor || turnEngine.finished) {
+            isAiThinking = false;
+            aiIndicatorText.textContent = "人机准备就绪";
+            return;
+          }
+
+          const bestMove = turnAI.getBestMove(aiColor);
+          bestMove.moverColor = aiColor; // 供胜率条按执棋方换算
+
+          if (bestMove.candidates) {
+            latestCandidates = bestMove.candidates;
+          }
+
+          if (bestMove.x === -1) {
+            turnEngine.pass(aiColor);
+          } else {
+            const played = turnEngine.play(bestMove.x, bestMove.y, aiColor);
+            if (played.success) {
+              playStoneSound();
+            } else {
+              // 兜底：AI 选点被规则拦下（禁全同、打劫禁着等）时，改走一个合法点
+              const legal = turnEngine.getLegalMoves(aiColor);
+              if (legal.length === 0) {
+                turnEngine.pass(aiColor);
+              } else {
+                const fallback = legal[Math.floor(Math.random() * legal.length)];
+                turnEngine.play(fallback.x, fallback.y, aiColor);
+                playStoneSound();
+              }
+            }
+          }
+
+          isAiThinking = false;
+          aiIndicatorText.textContent = "人机准备就绪";
+          updateDashboard(bestMove);
+
+          // 双方停一手则进入终局数子
+          if (engine.awaitingSettlement) {
+            openSettlement();
+            return;
+          }
+
+          // 若在 AI 自战模式中，持续递归进行
+          if (gameMode === "ai-vs-ai" && !engine.finished) {
+            setTimeout(triggerAiTurnIfNeeded, 600);
+          }
+        }, 120);
+      }
+
+      // 鼠标与触摸交互
+      // 屏幕坐标 -> 棋盘交叉点（鼠标与触摸共用）
+      function toBoardCoord(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const { padding, cellSize } = getMetrics();
+        const x = Math.round((clientX - rect.left - padding) / cellSize);
+        const y = Math.round((clientY - rect.top - padding) / cellSize);
+        return engine.isOnBoard(x, y) ? { x, y } : null;
+      }
+
+      canvas.addEventListener("mousemove", (e) => {
+        hoverCoord = toBoardCoord(e.clientX, e.clientY);
+        render();
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        hoverCoord = null;
+        render();
+      });
+
+      // 点击：直接使用本次事件坐标，触屏不再依赖悬停状态
+      canvas.addEventListener("click", (e) => {
+        const coord = toBoardCoord(e.clientX, e.clientY);
+        if (!coord) return;
+        if (settlementMode) {
+          toggleDeadStone(coord.x, coord.y);
+          return;
+        }
+        hoverCoord = coord;
+        handleUserPlay(coord.x, coord.y);
+      });
+
+      // 按钮操作绑定
+      document.getElementById("btn-undo").addEventListener("click", () => {
+        if (isAiThinking) return;
+        if (settlementMode) exitSettlement();
+        if (gameMode.startsWith("human-vs-ai")) {
+          const humanColor = gameMode === "human-vs-ai-black" ? 1 : 2;
+          engine.undo();
+          // 若退到电脑行棋，再退一手，让棋盘回到我方可以落子的状态
+          if (engine.turn !== humanColor && engine.history.length > 0) engine.undo();
+        } else {
+          engine.undo();
+        }
+        latestCandidates = [];
+        showBoardMessage("");
+        updateDashboard();
+      });
+
+      document.getElementById("btn-pass").addEventListener("click", () => {
+        if (isAiThinking || engine.finished || settlementMode) return;
+        engine.pass(engine.turn);
+        updateDashboard({ x: -1, y: -1, comment: "行棋停一手，让出出子权。" });
+        if (engine.awaitingSettlement) {
+          openSettlement();
+          return;
+        }
+        triggerAiTurnIfNeeded();
+      });
+
+      document.getElementById("btn-resign").addEventListener("click", () => {
+        if (isAiThinking || engine.finished || settlementMode) return;
+        const resigning = engine.turn;
+        if (confirm(`确定要由${resigning === 1 ? "黑方" : "白方"}认输吗？`)) {
+          engine.resign(resigning);
+          updateDashboard();
+          showBoardMessage(`对局结束：${resigning === 1 ? "黑方" : "白方"}认输，${engine.winner === 1 ? "黑方" : "白方"}获胜。`, "result", 0);
+        }
+      });
+
+      document.getElementById("btn-territory").addEventListener("click", function () {
+        showTerritory = !showTerritory;
+        this.classList.toggle("active", showTerritory);
+        render();
+      });
+
+      document.getElementById("btn-candidates").addEventListener("click", function () {
+        showCandidates = !showCandidates;
+        this.classList.toggle("active", showCandidates);
+        if (showCandidates && latestCandidates.length === 0 && !engine.isGameOver) {
+          const evalRes = ai.getBestMove(engine.turn);
+          latestCandidates = evalRes.candidates || [];
+        }
+        render();
+      });
+
+      document.getElementById("btn-sound").addEventListener("click", function () {
+        soundEnabled = !soundEnabled;
+        this.classList.toggle("active", soundEnabled);
+        const label = document.getElementById("btn-sound-label");
+        if (label) label.textContent = soundEnabled ? "音效: 开" : "音效: 关";
+      });
+
+      document.getElementById("btn-new-game").addEventListener("click", () => {
+        boardSize = parseInt(boardSizeSelect.value, 10);
+        gameMode = gameModeSelect.value;
+        aiLevel = aiLevelSelect.value;
+        komi = parseFloat(komiSelect.value);
+
+        engine = new GoEngine(boardSize, komi);
+        ai = new GoAI(engine, aiLevel);
+        latestCandidates = [];
+        cancelPendingAiTurn(); // 作废仍在等待中的旧 AI 思考
+        exitSettlement();
+        showBoardMessage("");
+        resizeCanvas();
+        updateDashboard();
+
+        triggerAiTurnIfNeeded();
+      });
+
+      // 配置项改变即时响应
+      boardSizeSelect.addEventListener("change", () => {
+        document.getElementById("btn-new-game").click();
+      });
+      komiSelect.addEventListener("change", () => {
+        document.getElementById("btn-new-game").click();
+      });
+      gameModeSelect.addEventListener("change", (e) => {
+        gameMode = e.target.value;
+        // 模式变了，双方角色也随之改变：先丢弃可能还在等待的旧思考，再按新角色重新触发
+        cancelPendingAiTurn();
+        updateDashboard();
+        triggerAiTurnIfNeeded();
+      });
+      aiLevelSelect.addEventListener("change", (e) => {
+        aiLevel = e.target.value;
+        ai.setLevel(aiLevel);
+      });
+
+      // 终局数子面板按钮
+      if (settlePanel) {
+        document.getElementById("btn-settle-auto").addEventListener("click", () => {
+          deadStones = engine.getSuggestedDeadStones();
+          refreshSettlementScore();
+          render();
+        });
+
+        document.getElementById("btn-settle-clear").addEventListener("click", () => {
+          deadStones = new Set();
+          refreshSettlementScore();
+          render();
+        });
+
+        document.getElementById("btn-settle-resume").addEventListener("click", () => {
+          exitSettlement();
+          updateDashboard();
+          showBoardMessage("已退出终局数子，对局继续。", "", 3000);
+          // 续下后若轮到电脑，需要重新接上 AI 行棋，否则会停在原地无人落子
+          triggerAiTurnIfNeeded();
+        });
+
+        document.getElementById("btn-settle-confirm").addEventListener("click", () => {
+          const result = engine.settle(deadStones);
+          settlementMode = false;
+          deadStones = new Set();
+          if (settlePanel) settlePanel.classList.add("hidden");
+          showTerritory = true;
+          document.getElementById("btn-territory").classList.add("active");
+          updateDashboard();
+          showBoardMessage(`终局：${describeResult(result)}`, "result", 0);
+        });
+      }
+
+      // SGF 导入导出模态窗
+      const sgfModal = document.getElementById("sgf-modal");
+      const sgfInput = document.getElementById("sgf-input");
+
+      document.getElementById("btn-sgf").addEventListener("click", () => {
+        sgfInput.value = engine.toSGF("人类棋手", "墨月高阶AI");
+        sgfModal.classList.add("show");
+      });
+
+      document.getElementById("btn-sgf-close").addEventListener("click", () => {
+        sgfModal.classList.remove("show");
+      });
+
+      document.getElementById("btn-sgf-copy").addEventListener("click", () => {
+        navigator.clipboard.writeText(sgfInput.value).then(() => {
+          alert("SGF 棋谱已成功复制到剪贴板！");
+        });
+      });
+
+      document.getElementById("btn-sgf-load").addEventListener("click", () => {
+        const text = sgfInput.value.trim();
+        if (text) {
+          cancelPendingAiTurn(); // 载入棋谱会重写局面，作废等待中的旧 AI 思考
+          const ok = engine.loadSGF(text);
+          if (ok) {
+            sgfModal.classList.remove("show");
+            updateDashboard();
+            alert("SGF 棋谱载入成功！已就绪复盘。");
+          } else {
+            alert("SGF 格式解析失败，请检查文本。");
+          }
+        }
+      });
+
+      // 启动初始化
+      resizeCanvas();
+      updateDashboard();
+    })();
+  </script>
+</body>
+</html>
